@@ -142,16 +142,11 @@ class BTPeer:
     def addpeer(self, peerid, host, port):
         """Adds a peer name and host:port mapping to the known list of peers."""
 
-        if peerid not in self.peers and (self.maxpeers == 0 or len(self.peers) < self.maxpeers):
+        if not self.maxpeersreached() and peerid != self.myid and peerid not in self.peers:
             self.peers[peerid] = (host, int(port))
             return True
         else:
             return False
-
-    def getpeer(self, peerid):
-        """Returns the (host, port) tuple or None for the given peer name"""
-
-        return self.peers.get(peerid)
 
     def removepeer(self, peerid):
         """Removes peer information from the known list of peers."""
@@ -201,13 +196,13 @@ class BTPeer:
         """
 
         if self.router:
-            nextpid, host, port = self.router(peerid)
-        if not self.router or not nextpid:
+            nextpeerid, host, port = self.router(peerid)
+        if not self.router or not nextpeerid:
             self.__debug("Unable to route %s to %s" % (msgtype, peerid))
             return None
-        return self.connectandsend(host, port, msgtype, msgdata, pid=nextpid, waitreply=waitreply)
+        return self.connectandsend(host, port, msgtype, msgdata, peerid=nextpeerid, waitreply=waitreply)
 
-    def connectandsend(self, host, port, msgtype, msgdata, pid=None, waitreply=True):
+    def connectandsend(self, host, port, msgtype, msgdata, peerid=None, waitreply=True):
         """
         connectandsend(host, port, message type, message data, peer id, wait for a reply) -> [(reply type, reply data), ...]
 
@@ -217,15 +212,15 @@ class BTPeer:
 
         msgreply = []
         try:
-            peerconn = BTPeerConnection(pid, host, port, debug=self.debug)
+            peerconn = BTPeerConnection(peerid, host, port, debug=self.debug)
             peerconn.senddata(msgtype, msgdata)
-            self.__debug("Sent %s: %s" % (pid, msgtype))
+            self.__debug("Sent %s: %s" % (peerid, msgtype))
 
             if waitreply:
                 onereply = peerconn.recvdata()
                 while onereply != (None, None):
                     msgreply.append(onereply)
-                    self.__debug("Got reply %s: %s" % (pid, str(onereply)))
+                    self.__debug("Got reply %s: %s" % (peerid, str(onereply)))
                     onereply = peerconn.recvdata()
             peerconn.close()
         except KeyboardInterrupt:
@@ -238,32 +233,28 @@ class BTPeer:
 
     def checklivepeers(self):
         """
-        Attempts to ping all currently known peers in order to ensure that
-        they are still active. Removes any from the peer list that do
-        not reply. This function can be used as a simple stabilizer.
+        Attempts to ping all currently known peers. Returns a list of those 
+        that did not reply.
         """
 
         todelete = []
-        for pid in self.peers:
+        self.peerlock.acquire()
+        for peerid in self.peers:
             isconnected = False
             try:
-                self.__debug("Check live %s" % pid)
-                host, port = self.peers[pid]
-                peerconn = BTPeerConnection(pid, host, port, debug=self.debug)
+                self.__debug("Check live %s" % peerid)
+                host, port = self.peers[peerid]
+                peerconn = BTPeerConnection(
+                    peerid, host, port, debug=self.debug)
                 peerconn.senddata("PING", "")
                 isconnected = True
             except:
-                todelete.append(pid)
+                todelete.append(peerid)
                 if isconnected:
                     peerconn.close()
+        self.peerlock.release()
 
-        self.peerlock.acquire()
-        try:
-            for pid in todelete:
-                if pid in self.peers:
-                    del self.peers[pid]
-        finally:
-            self.peerlock.release()
+        return todelete
 
     def mainloop(self):
         s = self.makeserversocket(self.serverport)
@@ -301,12 +292,14 @@ class BTPeerConnection:
     def __init__(self, peerid, host, port, sock=None, debug=False):
         # any exceptions thrown upwards
 
-        self.id = peerid
+        self.peerid = peerid
+        self.host = host
+        self.port = int(port)
         self.debug = debug
 
         if not sock:
             self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.s.connect((host, int(port)))
+            self.s.connect((self.host, self.port))
         else:
             self.s = sock
 
@@ -371,4 +364,4 @@ class BTPeerConnection:
         self.s = None
 
     def __str__(self):
-        return "|%s|" % self.id
+        return "|%s|" % self.peerid
