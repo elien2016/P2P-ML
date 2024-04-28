@@ -4,7 +4,6 @@ import json
 import os
 import pickle
 
-import pandas as pd
 from azure.ai.ml import MLClient
 from azure.identity import InteractiveBrowserCredential
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
