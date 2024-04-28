@@ -23,9 +23,6 @@ REPLY = "REPL"
 ERROR = "ERRO"
 
 
-# Assumption in this program:
-#   peer id's in this application are just "host:port" strings
-
 class MLPeer(BTPeer):
     """
     Implements a peer in a Machine Learning inference network based on the
