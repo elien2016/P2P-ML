@@ -6,7 +6,7 @@ import threading
 import time
 import traceback
 
-import requests
+# import requests
 
 
 def btdebug(msg):
@@ -16,12 +16,13 @@ def btdebug(msg):
 
 
 class BTPeer:
-    """Implements the core functionality that might be used by a peer in a
-    P2P network.
+    """
+    Implements the core functionality that might be used by a peer in a P2P network.
     """
 
     def __init__(self, maxpeers, serverport, myid=None, serverhost=None):
-        """information for up to maxpeers number of peers (maxpeers may
+        """
+        Initializes for up to maxpeers number of peers (maxpeers may
         be set to 0 to allow unlimited number of peers), listening on
         a given server port , with a given canonical peer name (id)
         and host address. If not supplied, the host address
@@ -52,8 +53,9 @@ class BTPeer:
         self.router = None
 
     def __initserverhost(self):
-        """Attempt to connect to an Internet host in order to determine the
-        local machine's public IP address.
+        """
+        Attempts to connect to an Internet host in order to determine the 
+        local machine's IP address.
         """
 
         # response = requests.get("https://ipinfo.io/ip")
@@ -72,7 +74,7 @@ class BTPeer:
         """
         handlepeer(new socket connection) -> ()
 
-        Dispatches messages from the socket connection
+        Dispatches messages from the socket connection.
         """
 
         self.__debug("New child " + str(threading.currentThread().getName()))
@@ -117,13 +119,14 @@ class BTPeer:
         t.start()
 
     def addhandler(self, msgtype, handler):
-        """Registers the handler for the given message type with this peer"""
+        """Registers the handler for the given message type with this peer."""
 
         assert len(msgtype) == 4
         self.handlers[msgtype] = handler
 
     def addrouter(self, router):
-        """Registers a routing function with this peer. The setup of routing
+        """
+        Registers a routing function with this peer. The setup of routing
         is as follows: This peer maintains a list of other known peers
         (in self.peers). The routing function should take the name of
         a peer (which may not necessarily be present in self.peers)
@@ -157,12 +160,12 @@ class BTPeer:
             del self.peers[peerid]
 
     def getpeerids(self):
-        """Return a list of all known peer id's."""
+        """Returns a list of all known peer id's."""
 
         return self.peers.keys()
 
     def numberofpeers(self):
-        """Return the number of known peers."""
+        """Returns the number of known peers."""
 
         return len(self.peers)
 
@@ -187,7 +190,7 @@ class BTPeer:
         """
         sendtopeer(peer id, message type, message data, wait for a reply) -> [(reply type, reply data), ...]
 
-        Send a message to the identified peer. In order to decide how to
+        Sends a message to the identified peer. In order to decide how to
         send the message, the router handler for this peer will be called.
         If no router function has been registered, it will not work. The
         router function should provide the next immediate peer to whom the
@@ -234,7 +237,8 @@ class BTPeer:
         return msgreply
 
     def checklivepeers(self):
-        """Attempts to ping all currently known peers in order to ensure that
+        """
+        Attempts to ping all currently known peers in order to ensure that
         they are still active. Removes any from the peer list that do
         not reply. This function can be used as a simple stabilizer.
         """
@@ -320,7 +324,7 @@ class BTPeerConnection:
         """
         senddata(message type, message data) -> boolean status
 
-        Send a message through a peer connection. Returns True on success
+        Sends a message through a peer connection. Returns True on success
         or False if there was an error.
         """
 
@@ -339,7 +343,7 @@ class BTPeerConnection:
         """
         recvdata() -> (msgtype, msgdata)
 
-        Receive a message from a peer connection. Returns (None, None)
+        Receives a message from a peer connection. Returns (None, None)
         if there was any error.
         """
 
@@ -360,7 +364,7 @@ class BTPeerConnection:
         """
         close()
 
-        Close the peer connection. The send and recv methods will not work
+        Closes the peer connection. The send and recv methods will not work
         after this call.
         """
         self.s.close()
