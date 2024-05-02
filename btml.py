@@ -350,8 +350,54 @@ class MLPeer(BTPeer):
         """Loads a model from AWS SageMaker."""
 
         # TODO implement model loading from AWS SageMaker
-        import lightgbm
-        self.models[model_name] = lightgbm.Booster(model_file='./output/lgb_model.txt')
+
+        #!pip install sagemaker
+    import sagemaker, boto3
+
+    session = boto3.Session(
+        aws_access_key_id='',
+        aws_secret_access_key='',
+        region_name = 'us-east-2'
+    )
+
+# model = sagemaker.model.Model(
+#     model_data='s3://sagemaker-us-east-2-851725545677/eruption-prediction/output/model.tar.gz',
+#     role='arn:aws:iam::851725545677:role/service-role/AmazonSageMaker-ExecutionRole-20240428T191744',
+#     image_uri='763104351884.dkr.ecr.us-east-2.amazonaws.com/pytorch-training:1.9.0-cpu-py38',
+#     sagemaker_session=sagemaker.Session(boto_session=session)
+# )
+
+# model.deploy(
+#     initial_instance_count=1,
+#     instance_type='ml.t2.medium',
+#     endpoint_name='rubbenliu-endpoint',
+#     sagemaker_session=sagemaker.Session(boto_session=session)
+# )
+
+    estimator = sagemaker.estimator.Estimator(entry_point='./transfer_learning.py',
+                                          image_uri='763104351884.dkr.ecr.us-east-2.amazonaws.com/pytorch-training:1.9.0-cpu-py38',
+                                          role='arn:aws:iam::851725545677:role/service-role/AmazonSageMaker-ExecutionRole-20240428T191744',
+                                          instance_count=1,
+                                          instance_type='ml.m4.xlarge',
+                                          hyperparameters={'num-leaves': 31,
+                                                           'learning-rate': 0.1,
+                                                           'num-boost-round': 100},
+                                          output_path='s3://sagemaker-us-east-2-851725545677/eruption-prediction/output',
+                                          sagemaker_session=sagemaker.Session(boto_session=session))
+
+    estimator.fit({'train': 's3://sagemaker-us-east-2-851725545677/eruption-prediction/output/preprocessed_train.csv'})
+
+    predictor = estimator.deploy(
+        initial_instance_count=1,
+        instance_type='ml.t2.medium',
+    )
+
+    predictions = predictor.predict(test)
+
+    predictor.delete_endpoint()
+
+    print(prediction)
+
 
         self.model_registry[model_name] = (
             None, self.serverhost, self.serverport)
