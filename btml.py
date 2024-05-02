@@ -350,6 +350,8 @@ class MLPeer(BTPeer):
         """Loads a model from AWS SageMaker."""
 
         # TODO implement model loading from AWS SageMaker
+        import lightgbm
+        self.models[model_name] = lightgbm.Booster(model_file='./output/lgb_model.txt')
 
         self.model_registry[model_name] = (
             None, self.serverhost, self.serverport)
