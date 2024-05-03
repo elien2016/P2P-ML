@@ -346,35 +346,28 @@ class MLPeer(BTPeer):
             if self.debug:
                 traceback.print_exc()
 
-    def load_model_from_AWS_SageMaker(self, model_name):
+    def load_model_from_AWS_SageMaker(self, model_name, access_key_id, secret_access_key, region_name, download_path='.'):
         """Loads a model from AWS SageMaker."""
-
-        # TODO implement model loading from AWS SageMaker
 
         import sagemaker, boto3, pathlib
 
         pathlib.Path("./output").mkdir(parents=True, exist_ok=True)
 
-        file = open('./credentials.txt', 'r')
-        access_key_id = file.readline().replace('\n', '')
-        secret_access_key = file.readline().replace('\n', '')
-        file.close()
-
         client = boto3.client('sagemaker',
             aws_access_key_id=access_key_id,
             aws_secret_access_key=secret_access_key,
-            region_name = 'us-east-2'
+            region_name = region_name
         )
 
         response = client.describe_model(
-            ModelName='pytorch-training-2024-05-02-23-45-08-213'
+            ModelName=model_name
         )
 
         url = response['PrimaryContainer']['ModelDataUrl'].replace('s3://', '')
 
         boto3.Session().resource('s3', aws_access_key_id=access_key_id,
                  aws_secret_access_key=secret_access_key).Bucket(url.split('/', maxsplit=1)[0]).Object(
-            url.split('/', maxsplit=1)[1]).download_file('./output/lgb_model.pkl')
+            url.split('/', maxsplit=1)[1]).download_file(download_path)
 
         self.model_registry[model_name] = (
             None, self.serverhost, self.serverport)
