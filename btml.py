@@ -348,6 +348,7 @@ class MLPeer(BTPeer):
             if self.debug:
                 traceback.print_exc()
 
+    # usage: load_model_from_AWS_SageMaker('pytorch-training-2024-05-02-23-45-08-213', access_key_id, secret_access_key, 'us-east-2', './output/lgb_model.pkl')
     def load_model_from_AWS_SageMaker(self, model_name, access_key_id, secret_access_key, region_name, download_path='.'):
         """Loads a model from AWS SageMaker."""
 
