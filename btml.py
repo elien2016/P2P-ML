@@ -9,7 +9,7 @@ from azure.identity import InteractiveBrowserCredential
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from sklearn import *
 
-import sagemaker, boto3, pathlib
+import sagemaker, boto3
 
 from btpeer import *
 
@@ -350,8 +350,6 @@ class MLPeer(BTPeer):
 
     def load_model_from_AWS_SageMaker(self, model_name, access_key_id, secret_access_key, region_name, download_path='.'):
         """Loads a model from AWS SageMaker."""
-
-        pathlib.Path("./output").mkdir(parents=True, exist_ok=True)
 
         client = boto3.client('sagemaker',
             aws_access_key_id=access_key_id,
