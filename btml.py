@@ -4,12 +4,11 @@ import json
 import os
 import pickle
 
+import boto3
 from azure.ai.ml import MLClient
 from azure.identity import InteractiveBrowserCredential
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from sklearn import *
-
-import sagemaker, boto3
 
 from btpeer import *
 
@@ -348,30 +347,28 @@ class MLPeer(BTPeer):
             if self.debug:
                 traceback.print_exc()
 
-    # usage: load_model_from_AWS_SageMaker('pytorch-training-2024-05-02-23-45-08-213', access_key_id, secret_access_key, 'us-east-2', './output/lgb_model.pkl')
-    def load_model_from_AWS_SageMaker(self, model_name, access_key_id, secret_access_key, region_name, download_path='.'):
+    def load_model_from_AWS_SageMaker(self, model_name, access_key, secret_key, region, download_path='.'):
         """Loads a model from AWS SageMaker."""
 
-        client = boto3.client('sagemaker',
-            aws_access_key_id=access_key_id,
-            aws_secret_access_key=secret_access_key,
-            region_name = region_name
-        )
+        try:
+            session = boto3.session.Session(aws_access_key_id=access_key,
+                                            aws_secret_access_key=secret_key,
+                                            region_name=region)
 
-        response = client.describe_model(
-            ModelName=model_name
-        )
+            sagemaker_client = session.client('sagemaker')
+            response = sagemaker_client.describe_model(ModelName=model_name)
 
-        url = response['PrimaryContainer']['ModelDataUrl'].replace('s3://', '')
+            url = response['PrimaryContainer']['ModelDataUrl'].replace(
+                's3://', '')
+            bucket, key = url.split('/', maxsplit=1)
 
-        boto3.Session().resource('s3', aws_access_key_id=access_key_id,
-                 aws_secret_access_key=secret_access_key).Bucket(url.split('/', maxsplit=1)[0]).Object(
-            url.split('/', maxsplit=1)[1]).download_file(download_path)
-        
+            session.client('s3').download_file(bucket, key, download_path)
 
-        self.model_registry[model_name] = (
-            None, self.serverhost, self.serverport)
-        self.__debug("loaded model %s from AWS SageMaker" % model_name)
+            self.load_model_from_path(model_name, download_path)
+            self.__debug("loaded model %s from AWS SageMaker" % model_name)
+        except:
+            if self.debug:
+                traceback.print_exc()
 
     def unload_model(self, model_name):
         """Unloads a model."""
