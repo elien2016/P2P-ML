@@ -78,12 +78,13 @@ class BTPeer:
         """
 
         self.__debug("New child " + str(threading.currentThread().getName()))
-        self.__debug("Connected " + str(clientsock.getpeername()))
 
         host, port = clientsock.getpeername()
-        peerconn = BTPeerConnection(None, host, port, clientsock, debug=False)
+        self.__debug("Connected " + str((host, port)))
 
         try:
+            peerconn = BTPeerConnection(
+                None, host, port, clientsock, self.debug)
             msgtype, msgdata = peerconn.recvdata()
             if msgtype:
                 msgtype = msgtype.upper()
@@ -98,11 +99,13 @@ class BTPeer:
             if self.debug:
                 traceback.print_exc()
 
-        self.__debug("Disconnecting " + str(clientsock.getpeername()))
-        peerconn.close()
+        self.__debug("Disconnecting " + str((host, port)))
+        clientsock.close()
 
     def __runstabilizer(self, stabilizer, delay):
         while not self.shutdown:
+            if self.debug:
+                self.__debug("Running stabilizer...")
             stabilizer()
             time.sleep(delay)
 
@@ -198,7 +201,8 @@ class BTPeer:
         if self.router:
             nextpeerid, host, port = self.router(peerid)
         if not self.router or not nextpeerid:
-            self.__debug("Unable to route %s to %s" % (msgtype, peerid))
+            self.__debug("Unable to route %s to %s" %
+                         (msgtype, peerid))
             return None
         return self.connectandsend(host, port, msgtype, msgdata, peerid=nextpeerid, waitreply=waitreply)
 
@@ -212,21 +216,25 @@ class BTPeer:
 
         msgreply = []
         try:
-            peerconn = BTPeerConnection(peerid, host, port, debug=self.debug)
+            peerconn = BTPeerConnection(peerid, host, port, None, self.debug)
             peerconn.senddata(msgtype, msgdata)
-            self.__debug("Sent %s: %s" % (peerid, msgtype))
+            self.__debug("Sent %s (%s:%d): %s" %
+                         (peerid, host, int(port), msgtype))
 
             if waitreply:
                 onereply = peerconn.recvdata()
                 while onereply != (None, None):
                     msgreply.append(onereply)
-                    self.__debug("Got reply %s: %s" % (peerid, str(onereply)))
+                    self.__debug("Got reply %s (%s:%d): %s" %
+                                 (peerid, host, int(port), str(onereply)))
                     onereply = peerconn.recvdata()
             peerconn.close()
         except KeyboardInterrupt:
             raise
         except:
             if self.debug:
+                self.__debug("%s:%d %s %s" %
+                             (host, int(port), msgtype, msgdata))
                 traceback.print_exc()
 
         return msgreply
@@ -240,18 +248,15 @@ class BTPeer:
         todelete = []
         self.peerlock.acquire()
         for peerid in self.peers:
-            isconnected = False
+            host, port = self.peers[peerid]
+            self.__debug("Check live %s (%s:%d)" % (peerid, host, port))
+
             try:
-                self.__debug("Check live %s" % peerid)
-                host, port = self.peers[peerid]
-                peerconn = BTPeerConnection(
-                    peerid, host, port, debug=self.debug)
-                peerconn.senddata("PING", "")
-                isconnected = True
+                if not self.connectandsend(host, port, "PING", "", peerid, True):
+                    todelete.append(peerid)
             except:
                 todelete.append(peerid)
-                if isconnected:
-                    peerconn.close()
+
         self.peerlock.release()
 
         return todelete
@@ -305,6 +310,7 @@ class BTPeerConnection:
 
     def __makemsg(self, msgtype, msgdata):
         msglen = len(msgdata)
+
         msg = struct.pack("!4sL%ds" %
                           msglen, msgtype.encode(), msglen, msgdata.encode())
         return msg
@@ -342,6 +348,8 @@ class BTPeerConnection:
 
         try:
             msgtype = self.s.recv(4).decode()
+            if not msgtype:
+                return (None, None)
             msglen = struct.unpack("!L", self.s.recv(4))[0]
             msg = self.s.recv(msglen).decode()
         except KeyboardInterrupt:
@@ -360,6 +368,7 @@ class BTPeerConnection:
         Closes the peer connection. The send and recv methods will not work
         after this call.
         """
+
         self.s.close()
         self.s = None
 

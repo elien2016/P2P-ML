@@ -12,6 +12,7 @@ from sklearn import *
 
 from btpeer import *
 
+PING = "PING"
 PEERNAME = "NAME"   # request a peer's canonical id
 LISTPEERS = "LIST"
 INSERTPEER = "JOIN"
@@ -37,23 +38,25 @@ class MLPeer(BTPeer):
         the dictionary of models to empty and adds handlers to the
         BTPeer framework.
         """
+
         BTPeer.__init__(self, maxpeers, serverport, myid, serverhost)
 
         # modelname --> model mapping
         self.models = {}
 
         # modelname --> (peerid, host, port) mapping
-        self.model_registry = {}
+        self.model_map = {}
 
         self.addrouter(self.__router)
 
+        self.addhandler(PING, self.__handle_ping)
         self.addhandler(PEERNAME, self.__handle_peername)
         self.addhandler(LISTPEERS, self.__handle_listpeers)
         self.addhandler(INSERTPEER, self.__handle_insertpeer)
         self.addhandler(QUERY, self.__handle_query)
         self.addhandler(QRESPONSE, self.__handle_qresponse)
         self.addhandler(INFER, self.__handle_infer)
-        self.addhandler(PEERQUIT, self.__handle_quit)
+        self.addhandler(PEERQUIT, self.__handle_peerquit)
 
     def __debug(self, msg):
         if self.debug:
@@ -66,18 +69,14 @@ class MLPeer(BTPeer):
             host, port = self.peers[peerid]
             return (peerid, host, port)
 
-    def __stabilize(self):
-        todelete = self.checklivepeers()
+    def __handle_ping(self, peerconn, data):
+        """Handles the PING message type. Message data is not used."""
 
-        self.peerlock.acquire()
-        try:
-            for peerid in todelete:
-                self.removepeer(peerid)
-        finally:
-            self.peerlock.release()
+        peerconn.senddata(REPLY, 'Pong')
 
     def __handle_peername(self, peerconn, data):
         """Handles the NAME message type. Message data is not used."""
+
         peerconn.senddata(REPLY, self.myid)
 
     def __handle_listpeers(self, peerconn, data):
@@ -119,7 +118,8 @@ class MLPeer(BTPeer):
         try:
             if self.addpeer(peerid, host, port):
                 self.__debug('added peer: %s' % peerid)
-                peerconn.senddata(REPLY, 'Join: peer added: %s' % peerid)
+                peerconn.senddata(REPLY, 'Join: peer added: %s (%s:%d)' % (
+                    peerid, host, int(port)))
             else:
                 peerconn.senddata(
                     ERROR, 'Join: peer already inserted or is self %s' % peerid)
@@ -140,7 +140,7 @@ class MLPeer(BTPeer):
             peerid, host, port, modelname, ttl = data.split()
         except:
             self.__debug('invalid query %s: %s' % (str(peerconn), data))
-            peerconn.senddata(ERROR, 'Query: incorrect arguments')
+            peerconn.senddata(ERROR, 'Quer: incorrect arguments')
             return
 
         peerconn.senddata(REPLY, 'Query ACK: %s' % modelname)
@@ -153,18 +153,18 @@ class MLPeer(BTPeer):
         """
         Handles the processing of a query message after it has been
         received and acknowledged, by either replying with a QRESPONSE message
-        if the model is in self.model_registry, or propagating the message onto
+        if the model is in self.model_map, or propagating the message onto
         all immediate neighbors.
         """
 
-        if modelname in self.model_registry:
-            mpeerid, mpeerhost, mpeerport = self.model_registry[modelname]
+        if modelname in self.model_map:
+            mpeerid, mpeerhost, mpeerport = self.model_map[modelname]
             if mpeerid is None:     # own models mapped to None
                 mpeerid = self.myid
 
             # can't use sendtopeer here because peerid is not necessarily
             # an immediate neighbor
-            self.connectandsend(host, port, QRESPONSE, '%s %s %s %s' % (
+            self.connectandsend(host, port, QRESPONSE, '%s %s %s %d' % (
                 modelname, mpeerid, mpeerhost, mpeerport), peerid, False)
             return
 
@@ -175,7 +175,7 @@ class MLPeer(BTPeer):
                 peerid, host, port, modelname, ttl - 1)
             for nextpeerid in self.getpeerids():
                 if nextpeerid != peerid:
-                    self.sendtopeer(nextpeerid, QUERY, msgdata)
+                    self.sendtopeer(nextpeerid, QUERY, msgdata, False)
 
     def __handle_qresponse(self, peerconn, data):
         """
@@ -191,11 +191,11 @@ class MLPeer(BTPeer):
             peerconn.senddata(ERROR, 'Resp: incorrect arguments')
             return
 
-        if modelname in self.model_registry:
+        if modelname in self.model_map:
             self.__debug("can't add duplicate model %s %s" %
                          (modelname, mpeerid))
         else:
-            self.model_registry[modelname] = (mpeerid, host, int(port))
+            self.add_model(modelname, mpeerid, host, port)
 
     def __handle_infer(self, peerconn, data):
         """
@@ -229,7 +229,7 @@ class MLPeer(BTPeer):
 
         peerconn.senddata(REPLY, output)
 
-    def __handle_quit(self, peerconn, data):
+    def __handle_peerquit(self, peerconn, data):
         """
         Handles the QUIT message type. The message data should be in the
         format of a string, "peerid", where peerid is the canonical
@@ -269,16 +269,19 @@ class MLPeer(BTPeer):
 
         peerid = None
 
-        self.__debug("Building peers from (%s,%s)" % (host, port))
+        self.__debug("Building peers from (%s:%s)" % (host, port))
 
         try:
-            _, peerid = self.connectandsend(host, port, PEERNAME, '')[0]
+            reply = self.connectandsend(host, port, PEERNAME, '')
+            if not reply:
+                return
 
+            _, peerid = reply[0]
             self.__debug("contacted " + peerid)
+
             onereply = self.connectandsend(host, port, INSERTPEER, '%s %s %d' % (
                 self.myid, self.serverhost, self.serverport), peerid)[0]
 
-            self.__debug(str(onereply))
             if (onereply[0] != REPLY) or (peerid in self.getpeerids()):
                 return
 
@@ -302,6 +305,21 @@ class MLPeer(BTPeer):
                 traceback.print_exc()
             self.removepeer(peerid)
 
+    def stabilize(self):
+        todelete = self.checklivepeers()
+
+        self.peerlock.acquire()
+        try:
+            for peerid in todelete:
+                self.removepeer(peerid)
+        finally:
+            self.peerlock.release()
+
+    def add_model(self, model_name, peerid, host, port):
+        """Adds a model to the self.model_map dictionary."""
+
+        self.model_map[model_name] = (peerid, host, int(port))
+
     def load_model_from_path(self, model_name, model_dir):
         """Loads a model from a pickle file."""
 
@@ -314,12 +332,13 @@ class MLPeer(BTPeer):
         if model_path is None:
             self.__debug(
                 "no .pkl or .pickle file found in %s" % model_dir)
+            return
 
         try:
             with open(model_path, 'rb') as f:
                 self.models[model_name] = pickle.load(f)
 
-            self.model_registry[model_name] = (
+            self.model_map[model_name] = (
                 None, self.serverhost, self.serverport)
         except pickle.UnpicklingError:
             self.__debug("error loading model from %s" % model_path)
@@ -341,8 +360,8 @@ class MLPeer(BTPeer):
             self.load_model_from_path(
                 model_name, os.path.join(download_path, model_name, ws.models.get(
                     model_name, model_version).path.split('/')[-2]))
-            self.__debug("loaded model %s %d from Azure ML" %
-                         model_name, model_version)
+            self.__debug("loaded model %s version %d from Azure ML" %
+                         (model_name, model_version))
         except:
             if self.debug:
                 traceback.print_exc()
@@ -376,12 +395,13 @@ class MLPeer(BTPeer):
         if model_name in self.models:
             del self.models[model_name]
 
-        if model_name in self.model_registry:
-            del self.model_registry[model_name]
+        if model_name in self.model_map:
+            del self.model_map[model_name]
 
     def query_data_in_Azure_Data_Explorer(self, cluster_uri, database, query):
         """Sends the query to Azure Data Explorer."""
 
+        result = []
         try:
             kcsb = KustoConnectionStringBuilder.with_interactive_login(
                 cluster_uri)
@@ -391,7 +411,11 @@ class MLPeer(BTPeer):
                 response = kusto_client.execute(database, query)
 
                 for row in response.primary_results[0]:
-                    self.__debug(row)
+                    result.append(row)
+                    if self.debug:
+                        self.__debug(row)
         except:
             if self.debug:
                 traceback.print_exc()
+
+        return result
