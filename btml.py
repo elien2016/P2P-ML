@@ -4,6 +4,7 @@ import json
 import os
 import pickle
 
+import boto3
 from azure.ai.ml import MLClient
 from azure.identity import InteractiveBrowserCredential
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
@@ -365,14 +366,28 @@ class MLPeer(BTPeer):
             if self.debug:
                 traceback.print_exc()
 
-    def load_model_from_AWS_SageMaker(self, model_name):
+    def load_model_from_AWS_SageMaker(self, model_name, access_key, secret_key, region, download_path):
         """Loads a model from AWS SageMaker."""
 
-        # TODO implement model loading from AWS SageMaker
+        try:
+            session = boto3.session.Session(aws_access_key_id=access_key,
+                                            aws_secret_access_key=secret_key,
+                                            region_name=region)
 
-        self.model_map[model_name] = (
-            None, self.serverhost, self.serverport)
-        self.__debug("loaded model %s from AWS SageMaker" % model_name)
+            sagemaker_client = session.client('sagemaker')
+            response = sagemaker_client.describe_model(ModelName=model_name)
+
+            url = response['PrimaryContainer']['ModelDataUrl'].replace(
+                's3://', '')
+            bucket, key = url.split('/', maxsplit=1)
+
+            session.client('s3').download_file(bucket, key, download_path)
+
+            self.load_model_from_path(model_name, download_path)
+            self.__debug("loaded model %s from AWS SageMaker" % model_name)
+        except:
+            if self.debug:
+                traceback.print_exc()
 
     def unload_model(self, model_name):
         """Unloads a model."""
