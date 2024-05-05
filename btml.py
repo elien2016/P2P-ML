@@ -366,7 +366,7 @@ class MLPeer(BTPeer):
             if self.debug:
                 traceback.print_exc()
 
-    def load_model_from_AWS_SageMaker(self, model_name, access_key, secret_key, region, download_path='.'):
+    def load_model_from_AWS_SageMaker(self, model_name, access_key, secret_key, region, download_path):
         """Loads a model from AWS SageMaker."""
 
         try:
