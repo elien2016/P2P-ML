@@ -8,6 +8,7 @@ import boto3
 from azure.ai.ml import MLClient
 from azure.identity import InteractiveBrowserCredential
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
+from lightgbm import *
 from sklearn import *
 
 from btpeer import *
@@ -205,7 +206,7 @@ class MLPeer(BTPeer):
         """
 
         try:
-            modelname, input = data.split()
+            modelname, input = data.split(maxsplit=1)
         except:
             self.__debug('invalid infer %s: %s' % (str(peerconn), data))
             peerconn.senddata(ERROR, 'Infr: incorrect arguments')
@@ -320,18 +321,23 @@ class MLPeer(BTPeer):
 
         self.model_map[model_name] = (peerid, host, int(port))
 
-    def load_model_from_path(self, model_name, model_dir):
-        """Loads a model from a pickle file."""
+    def load_model_from_path(self, model_name, path):
+        """Loads a model from a pickle file or from a directory that contains one."""
 
         model_path = None
-        for file in os.listdir(model_dir):
-            if file.endswith(".pkl") or file.endswith(".pickle"):
-                model_path = os.path.join(model_dir, file)
-                break
+        if os.path.isfile(path):
+            model_path = path
+        elif os.path.isdir(path):
+            for file in os.listdir(path):
+                if file.endswith(".pkl") or file.endswith(".pickle"):
+                    model_path = os.path.join(path, file)
+                    break
 
-        if model_path is None:
-            self.__debug(
-                "no .pkl or .pickle file found in %s" % model_dir)
+            if model_path is None:
+                self.__debug("no .pkl or .pickle file found in %s" % path)
+                return
+        else:
+            self.__debug("invalid path %s" % path)
             return
 
         try:
