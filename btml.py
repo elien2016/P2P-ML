@@ -3,6 +3,8 @@
 import json
 import os
 import pickle
+import threading
+import traceback
 
 import boto3
 from azure.ai.ml import MLClient
@@ -11,19 +13,19 @@ from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from lightgbm import *
 from sklearn import *
 
-from btpeer import *
+from btpeer import BTPeer, btdebug
 
-PING = "PING"
-PEERNAME = "NAME"   # request a peer's canonical id
-LISTPEERS = "LIST"
-INSERTPEER = "JOIN"
-QUERY = "QUER"
-QRESPONSE = "RESP"
-INFER = "INFR"
-PEERQUIT = "QUIT"
+PING = 'PING'
+PEERNAME = 'NAME'   # request a peer's canonical id
+LISTPEERS = 'LIST'
+INSERTPEER = 'JOIN'
+QUERY = 'QUER'
+QRESPONSE = 'RESP'
+INFER = 'INFR'
+PEERQUIT = 'QUIT'
 
-REPLY = "REPL"
-ERROR = "ERRO"
+REPLY = 'REPL'
+ERROR = 'ERRO'
 
 
 class MLPeer(BTPeer):
@@ -270,7 +272,7 @@ class MLPeer(BTPeer):
 
         peerid = None
 
-        self.__debug("Building peers from (%s:%s)" % (host, port))
+        self.__debug('Building peers from (%s:%s)' % (host, port))
 
         try:
             reply = self.connectandsend(host, port, PEERNAME, '')
@@ -278,7 +280,7 @@ class MLPeer(BTPeer):
                 return
 
             _, peerid = reply[0]
-            self.__debug("contacted " + peerid)
+            self.__debug('contacted ' + peerid)
 
             onereply = self.connectandsend(host, port, INSERTPEER, '%s %s %d' % (
                 self.myid, self.serverhost, self.serverport), peerid)[0]
@@ -329,15 +331,15 @@ class MLPeer(BTPeer):
             model_path = path
         elif os.path.isdir(path):
             for file in os.listdir(path):
-                if file.endswith(".pkl") or file.endswith(".pickle"):
+                if file.endswith('.pkl') or file.endswith('.pickle'):
                     model_path = os.path.join(path, file)
                     break
 
             if model_path is None:
-                self.__debug("no .pkl or .pickle file found in %s" % path)
+                self.__debug('no .pkl or .pickle file found in %s' % path)
                 return
         else:
-            self.__debug("invalid path %s" % path)
+            self.__debug('invalid path %s' % path)
             return
 
         try:
@@ -347,7 +349,7 @@ class MLPeer(BTPeer):
             self.model_map[model_name] = (
                 None, self.serverhost, self.serverport)
         except pickle.UnpicklingError:
-            self.__debug("error loading model from %s" % model_path)
+            self.__debug('error loading model from %s' % model_path)
 
     def load_model_from_Azure_ML(self, tenant_id, subscription_id, resource_group, workspace_name, model_name, model_version=None, download_path='.'):
         """Loads a model from Azure Machine Learning."""
@@ -366,13 +368,13 @@ class MLPeer(BTPeer):
             self.load_model_from_path(
                 model_name, os.path.join(download_path, model_name, ws.models.get(
                     model_name, model_version).path.split('/')[-2]))
-            self.__debug("loaded model %s version %d from Azure ML" %
+            self.__debug('loaded model %s version %d from Azure ML' %
                          (model_name, model_version))
         except:
             if self.debug:
                 traceback.print_exc()
 
-    def load_model_from_AWS_SageMaker(self, model_name, access_key, secret_key, region, download_path):
+    def load_model_from_AWS_SageMaker(self, access_key, secret_key, region, model_name, download_path):
         """Loads a model from AWS SageMaker."""
 
         try:
@@ -390,7 +392,7 @@ class MLPeer(BTPeer):
             session.client('s3').download_file(bucket, key, download_path)
 
             self.load_model_from_path(model_name, download_path)
-            self.__debug("loaded model %s from AWS SageMaker" % model_name)
+            self.__debug('loaded model %s from AWS SageMaker' % model_name)
         except:
             if self.debug:
                 traceback.print_exc()
@@ -412,7 +414,7 @@ class MLPeer(BTPeer):
             kcsb = KustoConnectionStringBuilder.with_interactive_login(
                 cluster_uri)
 
-            self.__debug("Querying data from Azure Data Explorer")
+            self.__debug('Querying data from Azure Data Explorer')
             with KustoClient(kcsb) as kusto_client:
                 response = kusto_client.execute(database, query)
 

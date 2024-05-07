@@ -118,7 +118,7 @@ class BTPeer:
         """
 
         t = threading.Thread(target=self.__runstabilizer,
-                             args=[stabilizer, delay])
+                             args=[stabilizer, delay], daemon=True)
         t.start()
 
     def addhandler(self, msgtype, handler):
