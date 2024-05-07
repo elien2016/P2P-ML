@@ -139,7 +139,7 @@ class MLPeerGui(customtkinter.CTk):
         self.model_list_frame.grid(row=1, column=0)
 
         self.model_list = tkinter.Listbox(
-            self.model_list_frame, bg='old lace', width=22, height=10)
+            self.model_list_frame, bg='old lace', bd=0, width=22, height=10)
         self.model_list.insert(tkinter.END, 'a', 'b', 'c',
                                'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o')
         self.model_list.grid(row=0, column=0, padx=(
@@ -156,11 +156,11 @@ class MLPeerGui(customtkinter.CTk):
         self.model_command_frame.grid(row=2, column=0)
 
         self.model_infer_button = customtkinter.CTkButton(
-            self.model_command_frame, width=100, border_width=2, fg_color='transparent', hover_color='black', text_color=('gray10', '#DCE4EE'), text="Infer", command=self.__on_press_infer)
+            self.model_command_frame, width=100, border_width=2, fg_color='transparent', hover_color=('misty rose', 'black'), text_color=('gray10', '#DCE4EE'), text="Infer", command=self.__on_press_infer)
         self.model_infer_button.grid(
             row=0, column=0, padx=(10, 0), sticky='ns')
         self.model_unload_button = customtkinter.CTkButton(
-            self.model_command_frame, width=100, border_width=2, fg_color='transparent', hover_color='black', text_color=('gray10', '#DCE4EE'), text="Unload", command=self.__on_press_unload)
+            self.model_command_frame, width=100, border_width=2, fg_color='transparent', hover_color=('misty rose', 'black'), text_color=('gray10', '#DCE4EE'), text="Unload", command=self.__on_press_unload)
         self.model_unload_button.grid(row=0, column=1, padx=10, sticky='ns')
 
         # create peers frame
@@ -177,7 +177,7 @@ class MLPeerGui(customtkinter.CTk):
         self.peer_list_frame.grid(row=1, column=0)
 
         self.peer_list = tkinter.Listbox(
-            self.peer_list_frame, bg='azure2', width=22, height=15)
+            self.peer_list_frame, bg='azure2', bd=0, width=22, height=15)
         self.peer_list.insert(tkinter.END, 'a', 'b', 'c',
                               'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v')
         self.peer_list.grid(row=0, column=0, padx=(10, 0),
@@ -194,21 +194,21 @@ class MLPeerGui(customtkinter.CTk):
         self.peer_command_frame.grid(row=2, column=0)
 
         self.peer_add_button = customtkinter.CTkButton(
-            self.peer_command_frame, width=100, border_width=2, fg_color='transparent', hover_color='black', text_color=('gray10', '#DCE4EE'), text="Add", command=self.__on_press_add)
+            self.peer_command_frame, width=100, border_width=2, fg_color='transparent', hover_color=('misty rose', 'black'), text_color=('gray10', '#DCE4EE'), text="Add", command=self.__on_press_add)
         self.peer_add_button.grid(
             row=0, column=0, padx=(10, 0), pady=(0, 5), sticky='ns')
         self.peer_remove_button = customtkinter.CTkButton(
-            self.peer_command_frame, width=100, border_width=2, fg_color='transparent', hover_color='black', text_color=('gray10', '#DCE4EE'), text="Remove", command=self.__on_press_remove)
+            self.peer_command_frame, width=100, border_width=2, fg_color='transparent', hover_color=('misty rose', 'black'), text_color=('gray10', '#DCE4EE'), text="Remove", command=self.__on_press_remove)
         self.peer_remove_button.grid(
             row=0, column=1, padx=10, pady=(0, 5), sticky='ns')
 
         self.peer_message_button = customtkinter.CTkButton(
-            self.peer_command_frame, width=210, border_width=2, fg_color='transparent', hover_color='black', text_color=('gray10', '#DCE4EE'), text="Message", command=self.__on_press_message)
+            self.peer_command_frame, width=210, border_width=2, fg_color='transparent', hover_color=('misty rose', 'black'), text_color=('gray10', '#DCE4EE'), text="Message", command=self.__on_press_message)
         self.peer_message_button.grid(
             row=1, column=0, columnspan=2, padx=10, pady=(0, 5), sticky='ns')
 
         self.stabilize_button = customtkinter.CTkButton(
-            self.peer_command_frame, width=210, border_width=2, fg_color='transparent', hover_color='black', text_color=('gray10', '#DCE4EE'), text="Stabilize", command=self.__on_press_stabilize)
+            self.peer_command_frame, width=210, border_width=2, fg_color='transparent', hover_color=('misty rose', 'black'), text_color=('gray10', '#DCE4EE'), text="Stabilize", command=self.__on_press_stabilize)
         self.stabilize_button.grid(
             row=2, column=0, columnspan=2, padx=10, pady=(0, 5), sticky='ns')
 
@@ -348,7 +348,7 @@ class MLPeerGui(customtkinter.CTk):
             row=0, column=0, padx=20, pady=(20, 0))
 
         self.start_monitoring_button = customtkinter.CTkButton(
-            self.data_source_frame, border_width=2, fg_color='transparent', hover_color='black', text_color=('gray10', '#DCE4EE'), text="Start monitoring", command=self.__on_press_start_monitoring)
+            self.data_source_frame, border_width=2, fg_color='transparent', hover_color=('misty rose', 'black'), text_color=('gray10', '#DCE4EE'), text="Start monitoring", command=self.__on_press_start_monitoring)
         self.start_monitoring_button.grid(
             row=1, column=0, padx=20, pady=15, sticky='ns')
 
@@ -374,7 +374,7 @@ class MLPeerGui(customtkinter.CTk):
         self.command_optionemenu.grid(row=0, column=0)
 
         self.execute_button = customtkinter.CTkButton(
-            self.command_operations_frame, border_width=2, fg_color='transparent', hover_color='black', text_color=('gray10', '#DCE4EE'), text="Execute", command=self.__on_press_execute)
+            self.command_operations_frame, border_width=2, fg_color='transparent', hover_color=('misty rose', 'black'), text_color=('gray10', '#DCE4EE'), text="Execute", command=self.__on_press_execute)
         self.execute_button.grid(
             row=0, column=1, padx=(20, 0), sticky='ns')
 
