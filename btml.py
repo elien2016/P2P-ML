@@ -282,11 +282,8 @@ class MLPeer(BTPeer):
             _, peerid = reply[0]
             self.__debug('contacted ' + peerid)
 
-            onereply = self.connectandsend(host, port, INSERTPEER, '%s %s %d' % (
+            self.connectandsend(host, port, INSERTPEER, '%s %s %d' % (
                 self.myid, self.serverhost, self.serverport), peerid)[0]
-
-            if (onereply[0] != REPLY) or (peerid in self.getpeerids()):
-                return
 
             self.addpeer(peerid, host, port)
 
@@ -402,9 +399,11 @@ class MLPeer(BTPeer):
 
         if model_name in self.models:
             del self.models[model_name]
+            self.__debug('unloaded %s from server' % model_name)
 
         if model_name in self.model_map:
             del self.model_map[model_name]
+            self.__debug('unloaded %s' % model_name)
 
     def query_data_in_Azure_Data_Explorer(self, cluster_uri, database, query):
         """Sends the query to Azure Data Explorer."""
@@ -420,8 +419,7 @@ class MLPeer(BTPeer):
 
                 for row in response.primary_results[0]:
                     result.append(row)
-                    if self.debug:
-                        self.__debug(row)
+                    self.__debug(row)
         except:
             if self.debug:
                 traceback.print_exc()

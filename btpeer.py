@@ -154,8 +154,10 @@ class BTPeer:
     def removepeer(self, peerid):
         """Removes peer information from the known list of peers."""
 
+        self.peerlock.acquire()
         if peerid in self.peers:
             del self.peers[peerid]
+        self.peerlock.release()
 
     def getpeerids(self):
         """Returns a list of all known peer id's."""
