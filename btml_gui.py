@@ -2,6 +2,7 @@
 
 import sys
 import threading
+import time
 import tkinter
 from collections import OrderedDict
 
@@ -19,14 +20,13 @@ class MLPeerGui(customtkinter.CTk):
     def __init__(self, max_peers, server_port, first_peer_ip, first_peer_port, auto_stabilize):
         super().__init__()
 
-        self.is_monitoring = False
         self.commands = OrderedDict([('Query data', 'cluster-uri database "query"'), (
             'Query model', 'model-name ttl'), ('Connect and send', 'host port message-type "message-data"')])
+        self.is_monitoring = False
 
         self.build_ui(server_port)
 
         self.mlpeer = MLPeer(max_peers, server_port)
-        self.mlpeer.debug = 1
 
         t_server = threading.Thread(
             target=self.mlpeer.mainloop, args=[], daemon=True)
@@ -55,16 +55,16 @@ class MLPeerGui(customtkinter.CTk):
 
     def log_textbox_print(self, text):
         self.log_textbox.configure(state='normal')
-        self.log_textbox.insert('end', '>> ' + text + '\n')
+        self.log_textbox.insert('end', '>> ' + str(text) + '\n')
         self.log_textbox.configure(state='disabled')
 
     def __infer(self, data):
         selections = self.model_list.curselection()
         if len(selections) == 1:
-            model_name = selections[0]
+            model_name = self.model_list.get(selections[0]).split()[0]
             peerid, host, port = self.mlpeer.model_map[model_name]
             reply = self.mlpeer.connectandsend(
-                host, port, 'INFR', data, peerid, True)
+                host, port, 'INFR', '%s %s' % (model_name, data), peerid, True)
             self.log_textbox_print(reply)
 
     def __on_press_infer(self):
@@ -78,7 +78,7 @@ class MLPeerGui(customtkinter.CTk):
     def __on_press_unload(self):
         selections = self.model_list.curselection()
         if len(selections) == 1:
-            model_name = selections[0]
+            model_name = self.model_list.get(selections[0]).split()[0]
             self.mlpeer.unload_model(model_name)
             self.update_models()
 
@@ -97,10 +97,12 @@ class MLPeerGui(customtkinter.CTk):
             try:
                 peerid, host, port = peer_info
                 port = int(port)
+                message_data = '%s %s %d' % (
+                    self.mlpeer.myid, self.mlpeer.serverhost, self.mlpeer.serverport)
                 reply = self.mlpeer.connectandsend(
-                    host, port, 'PING', '', peerid, True)
+                    host, port, 'JOIN', message_data, peerid, True)
 
-                if reply[0] == REPLY:
+                if reply and reply[0][0] == REPLY:
                     self.mlpeer.addpeer(peerid, host, port)
                     self.update_peers()
                 elif self.mlpeer.debug:
@@ -112,9 +114,10 @@ class MLPeerGui(customtkinter.CTk):
             self.log_textbox_print("Add peer: incorrect number of arguments")
 
     def __on_press_remove(self):
-        selections = self.model_list.curselection()
+        selections = self.peer_list.curselection()
         if len(selections) == 1:
-            peerid = selections[0]
+            peerid = self.peer_list.get(selections[0])
+            self.mlpeer.sendtopeer(peerid, 'QUIT', self.mlpeer.myid)
             self.mlpeer.removepeer(peerid)
             self.update_peers()
 
@@ -126,14 +129,12 @@ class MLPeerGui(customtkinter.CTk):
             return
 
         message_input = input.split(maxsplit=1)
-        selections = self.model_list.curselection()
+        selections = self.peer_list.curselection()
         if len(message_input) == 2 and len(selections) == 1:
             message_type, message_data = message_input
             message_input = message_input[1:-1]
-            if not message_data:
-                return
 
-            peerid = selections[0]
+            peerid = self.peer_list.get(selections[0])
             reply = self.mlpeer.sendtopeer(
                 peerid, message_type, message_data, True)
             self.log_textbox_print(reply)
@@ -184,7 +185,8 @@ class MLPeerGui(customtkinter.CTk):
         if not path:
             return
 
-        model_name = self.AWS_model_name_entry.get()
+        model_name = self.Local_model_name_entry.get()
+        self.Local_model_name_entry.delete(0, len(model_name))
 
         self.mlpeer.load_model_from_path(model_name, path)
         self.update_models()
@@ -202,6 +204,7 @@ class MLPeerGui(customtkinter.CTk):
             infer_input = [list(int(value or 0) for value in row)
                            for row in result]
             self.__infer(infer_input)
+            time.sleep(600)
 
     def __on_press_stop_monitoring(self):
         self.is_monitoring = False
@@ -223,6 +226,7 @@ class MLPeerGui(customtkinter.CTk):
 
     def __on_press_execute(self):
         input = self.command_arguments_entry.get()
+        self.command_arguments_entry.delete(0, len(input))
         if input is None:
             return
 
@@ -239,6 +243,7 @@ class MLPeerGui(customtkinter.CTk):
                         ttl = int(ttl)
                     except:
                         self.log_textbox_print("Query model: invalid ttl")
+                        return
 
                     for peerid in self.mlpeer.getpeerids():
                         self.mlpeer.sendtopeer(
@@ -248,8 +253,6 @@ class MLPeerGui(customtkinter.CTk):
                 if len(connect_and_send_input) == 4:
                     host, port, message_type, message_data = connect_and_send_input
                     message_data = message_data[1:-1]
-                    if not message_data:
-                        return
 
                     reply = self.mlpeer.connectandsend(
                         host, port, message_type, message_data, None, True)
