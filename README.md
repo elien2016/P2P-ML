@@ -1,6 +1,6 @@
 # P2P-ML
 
-P2P-ML allows you to build a P2P ML network with cloud integrations. It currently supports data fetching and model inference and is easily extensible to additional cloud providers and ML frameworks.
+P2P-ML allows you to build a P2P ML network with cloud integrations. It currently supports data fetching and model serving and is easily extensible to additional cloud providers and ML frameworks.
 
 <br/>
 
