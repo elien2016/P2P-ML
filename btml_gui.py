@@ -58,6 +58,11 @@ class MLPeerGui(customtkinter.CTk):
         self.log_textbox.insert('end', '>> ' + str(text) + '\n')
         self.log_textbox.configure(state='disabled')
 
+    def data_output_textbox_print(self, text):
+        self.data_output_textbox.configure(state='normal')
+        self.data_output_textbox.insert('end', '>> ' + str(text) + '\n')
+        self.data_output_textbox.configure(state='disabled')
+
     def __infer(self, data):
         selections = self.model_list.curselection()
         if len(selections) == 1:
@@ -102,7 +107,7 @@ class MLPeerGui(customtkinter.CTk):
                 reply = self.mlpeer.connectandsend(
                     host, port, 'JOIN', message_data, peerid, True)
 
-                if reply and reply[0][0] == REPLY:
+                if reply:
                     self.mlpeer.addpeer(peerid, host, port)
                     self.update_peers()
                 elif self.mlpeer.debug:
@@ -201,8 +206,8 @@ class MLPeerGui(customtkinter.CTk):
         self.is_monitoring = True
         while self.is_monitoring:
             result = self.__query_data(input)
-            infer_input = [list(int(value or 0) for value in row)
-                           for row in result]
+            infer_input = [
+                list(float(str) if '.' in str else 0.0 for str in row) for row in result]
             self.__infer(infer_input)
             time.sleep(600)
 
@@ -234,7 +239,7 @@ class MLPeerGui(customtkinter.CTk):
             case "Query data":
                 result = self.__query_data(input)
                 for row in result:
-                    self.log_textbox_print(row)
+                    self.data_output_textbox_print(row)
             case "Query model":
                 query_input = input.split()
                 if len(query_input) == 2:
@@ -269,7 +274,7 @@ class MLPeerGui(customtkinter.CTk):
 
         # create sidebar frame
         self.sidebar_frame = customtkinter.CTkFrame(
-            self, width=180, corner_radius=0)
+            self, width=190, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=3, sticky='nsew')
         self.sidebar_frame.grid_rowconfigure((0, 1), weight=1)
 
@@ -287,7 +292,7 @@ class MLPeerGui(customtkinter.CTk):
         self.model_list_frame.grid(row=1, column=0)
 
         self.model_list = tkinter.Listbox(
-            self.model_list_frame, bg='old lace', bd=0, width=22, height=10)
+            self.model_list_frame, bg='old lace', bd=0, width=26, height=10)
         self.model_list.grid(row=0, column=0, padx=(
             10, 0), pady=(0, 10), sticky='ns')
 
@@ -329,7 +334,7 @@ class MLPeerGui(customtkinter.CTk):
         self.peer_list_frame.grid(row=1, column=0)
 
         self.peer_list = tkinter.Listbox(
-            self.peer_list_frame, bg='azure2', bd=0, width=22, height=15)
+            self.peer_list_frame, bg='azure2', bd=0, width=26, height=15)
         self.peer_list.grid(row=0, column=0, padx=(10, 0),
                             pady=(0, 10), sticky='ns')
 
