@@ -307,11 +307,17 @@ class MLPeer(BTPeer):
 
     def stabilize(self):
         todelete = self.checklivepeers()
+        models_todelete = list(
+            filter(lambda t: t[1][0] in todelete, self.model_map.items()))
 
         self.peerlock.acquire()
         try:
             for peerid in todelete:
                 self.removepeer(peerid)
+
+            for model_name, _ in models_todelete:
+                if model_name in self.model_map:
+                    del self.model_map[model_name]
         finally:
             self.peerlock.release()
 

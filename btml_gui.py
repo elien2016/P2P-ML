@@ -147,6 +147,7 @@ class MLPeerGui(customtkinter.CTk):
     def __on_press_stabilize(self):
         self.mlpeer.stabilize()
         self.update_peers()
+        self.update_models()
 
     def __on_toggle_verbose(self):
         self.mlpeer.debug = self.verbose_switch.get()
