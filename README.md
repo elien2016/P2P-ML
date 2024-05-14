@@ -28,8 +28,3 @@ dark mode:
 
 light mode:
 <img width="1392" alt="Screenshot 2024-05-10 at 22 43 46" src="https://github.com/elien2016/P2P-ML/assets/65316754/f8b7d560-c473-43de-90ca-c939617b76f7">
-
-
-# Todo
-- get around NAT
-- add tests
